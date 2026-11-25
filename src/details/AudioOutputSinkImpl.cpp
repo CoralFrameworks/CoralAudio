@@ -25,6 +25,7 @@
 #include <minilog/log.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 namespace coral {
@@ -70,16 +71,25 @@ int64_t AudioOutputSinkImpl::getCurrentPositionUs(bool sourceEnded) {
   // written so far start at, advanced by the frames that have been played back since that anchor
   // and clamped to the frames written since it. Counting the frames written alone would report the
   // buffered audio as if it had already been played, which made the position run past the duration.
+  //
+  // `framesWritten` counts *input* (media) frames consumed by Sonic; the device counter counts
+  // *output* frames. At a rate other than 1x the two have different units, so the device delta has
+  // to be scaled by the rate before it can clamp the media frames. Without that, a 2x stream reports
+  // half the media time it has actually played, the media clock lags, and video stays at 1x while
+  // the audio is at 2x.
   auto playedFrames = framesWritten.load();
   if (deviceFramesRead >= 0) {
     const auto framesRead = mAudioStream->getFramesRead();
     if (framesRead > 0) {
       // The device counter measures the whole stream, so what advances the position is what it grew
       // by since the anchor, not what it reports: it does not restart when the client is reset. The
-      // frames written since the anchor stay the upper bound, as ExoPlayer clamps them too. The
-      // counter is not usable on every platform (it was observed to stay at or below zero on
-      // AAudio), in which case the frames written are all there is to go by.
-      playedFrames = std::min(playedFrames, std::max(int64_t{ 0 }, framesRead - deviceFramesRead));
+      // frames written since the anchor stay the upper bound. The counter is not usable on every
+      // platform (it was observed to stay at or below zero on AAudio), in which case the frames
+      // written are all there is to go by.
+      const auto outputFrames = std::max(int64_t{ 0 }, framesRead - deviceFramesRead);
+      const auto rate = mRate > 0.0f ? static_cast<double>(mRate) : 1.0;
+      const auto mediaFrames = static_cast<int64_t>(std::llround(static_cast<double>(outputFrames) * rate));
+      playedFrames = std::min(playedFrames, mediaFrames);
     }
   }
   currentPositionUs =
