@@ -23,6 +23,7 @@
 #include <media/Format.h>
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 
 namespace coral {
@@ -191,6 +192,21 @@ public:
    * Returns whether the output has data pending that has not been consumed yet.
    */
   virtual bool hasPendingData() = 0;
+
+  /**
+   * Returns whether the platform audio stream exposes an XRun (underrun/overrun) counter.
+   */
+  [[nodiscard]] virtual bool isXRunCountSupported() const {
+    return false;
+  }
+
+  /**
+   * Returns the platform XRun count, or 0 when the platform cannot expose one. The counter belongs
+   * to the open stream; it is not reset by a seek or a flush.
+   */
+  [[nodiscard]] virtual uint32_t getXRunCount() {
+    return 0;
+  }
 
   /**
    * Returns whether the output can accept another buffer. A sink whose consumption runs on a data

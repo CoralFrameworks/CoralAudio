@@ -374,6 +374,18 @@ void AudioOutputSinkImpl::release() {
   currentPositionUs = CURRENT_POSITION_NOT_SET;
 }
 
+bool AudioOutputSinkImpl::isXRunCountSupported() const {
+  return mAudioStream != nullptr && mAudioStream->isXRunCountSupported();
+}
+
+uint32_t AudioOutputSinkImpl::getXRunCount() {
+  if (mAudioStream == nullptr || !mAudioStream->isXRunCountSupported()) {
+    return 0;
+  }
+  const auto count = mAudioStream->getXRunCount();
+  return count ? count.value() : 0;
+}
+
 bool AudioOutputSinkImpl::hasCapacityForNextBuffer() {
   if (mAudioStream == nullptr) {
     return false;

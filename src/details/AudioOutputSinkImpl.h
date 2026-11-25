@@ -67,6 +67,10 @@ public:
     return mRingBuffer.available() > 0;
   }
 
+  [[nodiscard]] bool isXRunCountSupported() const override;
+
+  [[nodiscard]] uint32_t getXRunCount() override;
+
   bool hasCapacityForNextBuffer() override;
 
   void setRate(float rate) override;
